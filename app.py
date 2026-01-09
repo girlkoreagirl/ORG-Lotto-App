@@ -3,20 +3,20 @@ import streamlit.components.v1 as components
 import random
 import time
 
-# 1. 페이지 설정 (가장 최상단에 위치)
+# 1. 페이지 설정 (가장 최상단)
 st.set_page_config(page_title="Fortune AI", page_icon="💎", layout="centered")
 
-# 2. [철벽 방어] 초기화 로직
-# 앱이 켜지자마자 "나는 글자다"라고 확실히 박아 넣습니다.
+# 2. [에러 원천 봉쇄] 세션 상태 최우선 초기화
+# 앱이 켜지자마자 "비어있음" 상태를 허용하지 않습니다. 가짜 데이터라도 미리 채웁니다.
 if "lotto_html_content" not in st.session_state:
-    st.session_state["lotto_html_content"] = "<div></div>" # 빈 칸 대신 실제 태그를 넣음
+    st.session_state["lotto_html_content"] = "<div style='color:white;'>READY</div>"
 if "nums" not in st.session_state:
-    st.session_state["nums"] = []
+    st.session_state["nums"] = [0, 0, 0, 0, 0, 0]
 if "update_id" not in st.session_state:
     st.session_state["update_id"] = 0
 
 st.title("💎 Fortune AI: 무제한 로또")
-st.write("주인님, 100번의 고생 끝! 이제 진짜 회전 공이 소환됩니다.")
+st.write("100번의 실패는 이제 끝입니다. 회전 공을 강제로 소환합니다!")
 
 # 3. 분석 시작 버튼
 if st.button("🚀 AI 프리미엄 분석 시작 (무제한)", use_container_width=True, type="primary"):
@@ -25,21 +25,20 @@ if st.button("🚀 AI 프리미엄 분석 시작 (무제한)", use_container_wid
     st.session_state["update_id"] += 1
     
     # [회전 공 & 사운드] HTML 코드 생성
-    nums_str = str(st.session_state["nums"])
     sound_url = "https://www.soundjay.com/misc/sounds/bell-ringing-04.mp3"
     
-    # HTML 코드를 변수에 담음 (복잡한 변수 호출 제거)
+    # HTML을 하나의 큰 덩어리로 변수에 담습니다.
     new_html = f"""
     <div style='width:100%; height:400px; background:black; border-radius:20px; border:4px solid gold; overflow:hidden; position:relative;'>
         <canvas id='lotto' width='600' height='400' style='width:100%; height:100%;'></canvas>
-        <div id='msg' style='position:absolute; bottom:20px; width:100%; text-align:center; color:gold; font-family:sans-serif; font-weight:bold; font-size:20px;'>💎 AI 데이터 분석 및 추첨 진행 중...</div>
+        <div id='msg' style='position:absolute; bottom:20px; width:100%; text-align:center; color:gold; font-family:sans-serif; font-weight:bold; font-size:20px;'>💎 AI 가중치 데이터 분석 및 추첨 중...</div>
         <audio autoplay><source src="{sound_url}" type="audio/mp3"></audio>
     </div>
     <script>
         const canvas = document.getElementById('lotto');
         const ctx = canvas.getContext('2d');
         const balls = [];
-        for(let i=1; i<=45; i++) {{
+        for(let i=0; i<45; i++) {{
             balls.push({{
                 x: Math.random()*560+20, y: Math.random()*360+20,
                 r: 15, col: 'hsl('+(i*8)+', 80%, 60%)',
@@ -61,28 +60,29 @@ if st.button("🚀 AI 프리미엄 분석 시작 (무제한)", use_container_wid
             requestAnimationFrame(draw);
         }}
         draw();
-        setTimeout(() => {{ document.getElementById('msg').innerText = '🎉 분석 완료! 행운을 빕니다! 🎉'; }}, 2500);
+        setTimeout(() => {{ document.getElementById('msg').innerText = '🎉 분석 완료! 대박을 기원합니다! 🎉'; }}, 2500);
     </script>
     """
     st.session_state["lotto_html_content"] = new_html
-    st.rerun() # 데이터를 채운 후 즉시 화면 갱신
+    st.rerun() # 데이터를 채운 후 즉시 화면 다시 그리기
 
-# 4. [에러 제로] 화면 출력 로직
-# 'None'이나 비어있는 상태로 components.html이 호출되지 않도록 2중 잠금을 겁니다.
-current_html = str(st.session_state["lotto_html_content"])
+# 4. [에러 0.0% 지점] 화면 출력 로직
+# components.html이 받는 모든 인자를 str()과 int()로 강제 형변환합니다. (파이썬 3.13 에러 방지 핵심)
+current_content = str(st.session_state.get("lotto_html_content", "<div></div>"))
 
-if len(current_html) > 20: # 실제 HTML 코드가 들어있을 때만 실행
-    # key값을 미리 문자열 변수로 확정 지어서 파이썬 3.13 에러 방지
-    final_key = "render_id_" + str(st.session_state["update_id"])
+# 내용이 "READY"가 아닐 때(버튼 클릭 후)만 화면에 그립니다.
+if len(current_content) > 50:
+    # key값을 미리 문자열 변수로 고정해서 전달
+    final_key = "render_pass_" + str(st.session_state["update_id"])
     
     components.html(
-        current_html, 
+        current_content, 
         height=420, 
         key=final_key
     )
 
     # 5. 행운의 번호 공 표시
-    st.subheader("🔮 이번 회차 분석 번호")
+    st.subheader("🔮 이번 회차 행운의 번호")
     cols = st.columns(6)
     for i, n in enumerate(st.session_state["nums"]):
         cols[i].markdown(f"""
