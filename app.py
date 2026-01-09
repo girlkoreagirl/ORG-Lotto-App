@@ -3,43 +3,41 @@ import streamlit.components.v1 as components
 import random
 import time
 
-# 1. 페이지 기본 설정 (가장 먼저 실행)
+# 1. 페이지 기본 설정 (무조건 맨 위)
 st.set_page_config(page_title="Fortune AI", page_icon="💎", layout="centered")
 
 # 2. 세션 상태 초기화 (파이썬 3.13 최적화 방식)
 if "nums" not in st.session_state:
     st.session_state["nums"] = []
 if "k_id" not in st.session_state:
-    st.session_state["k_id"] = "start"
+    st.session_state["k_id"] = str(time.time())
 
 st.title("💎 Fortune AI: 무제한 로또")
-st.write("100번의 시련 끝! 이제 진짜 회전 공과 사운드가 소환됩니다.")
+st.write("100번의 고생 끝! 이제 진짜 회전 공과 사운드가 소환됩니다.")
 
 # 3. 분석 시작 버튼
 if st.button("🚀 AI 프리미엄 분석 시작", use_container_width=True, type="primary"):
     st.session_state["nums"] = sorted(random.sample(range(1, 46), 6))
-    # 버튼 누를 때마다 고유한 키값 생성 (에러 방지를 위해 미리 변수에 저장)
     st.session_state["k_id"] = str(time.time())
 
-# 4. 결과 화면 로직 (번호가 있을 때만 실행)
+# 4. 결과 출력 로직 (번호가 있을 때만 실행)
 if st.session_state["nums"]:
-    # 에러 방지 핵심: 모든 변수를 함수 밖에서 미리 확정합니다.
-    current_nums_json = str(st.session_state["nums"])
-    render_key = "lotto_canvas_" + st.session_state["k_id"]
-    sound_url = "https://www.soundjay.com/misc/sounds/bell-ringing-04.mp3"
-
-    # 화려한 회전 공 + 사운드 HTML (가장 튼튼한 구조)
-    lotto_html = f"""
+    # 파이썬 3.13 에러 방지를 위해 변수 타입을 엄격하게 고정합니다.
+    current_numbers = list(st.session_state["nums"])
+    # 키값에서 특수문자를 제거한 순수 문자열로 만듭니다.
+    pure_key = "lotto_view_" + "".join(filter(str.isalnum, st.session_state["k_id"]))
+    
+    # 화려한 회전 공 + 사운드 HTML (가장 안정적인 구조)
+    lotto_html_content = f"""
     <div style='width:100%; height:400px; background:black; border-radius:20px; border:4px solid gold; overflow:hidden; position:relative;'>
         <canvas id='lotto' width='600' height='400' style='width:100%; height:100%;'></canvas>
         <div id='msg' style='position:absolute; bottom:25px; width:100%; text-align:center; color:gold; font-family:sans-serif; font-size:20px; font-weight:bold;'>💎 AI 가중치 분석 및 추첨 중...</div>
-        <audio autoplay><source src="{sound_url}" type="audio/mp3"></audio>
+        <audio autoplay><source src="https://www.soundjay.com/misc/sounds/bell-ringing-04.mp3" type="audio/mp3"></audio>
     </div>
     <script>
         const c = document.getElementById('lotto');
         const x = c.getContext('2d');
         const balls = [];
-        // 화려한 공 45개 생성
         for(let i=1; i<=45; i++) {{
             balls.push({{
                 x: Math.random()*560+20, y: Math.random()*360+20,
@@ -66,14 +64,22 @@ if st.session_state["nums"]:
     </script>
     """
     
-    # 5. [에러 제로] 컴포넌트 호출 (key값을 미리 변수로 만들어 전달하는 것이 핵심)
-    components.html(str(lotto_html), height=420, key=render_key)
+    # 5. [에러 제로 핵심] 
+    # html 인자는 무조건 str, height는 int, key는 알파벳/숫자로만 된 str이어야 함
+    try:
+        components.html(
+            html=str(lotto_html_content), 
+            height=420, 
+            key=str(pure_key)
+        )
+    except Exception as e:
+        st.warning("애니메이션 로딩 중입니다. 잠시만 기다려 주세요.")
 
     # 6. 행운의 번호 공 표시
     st.subheader("🔮 이번 회차 분석 번호")
-    cols = st.columns(6)
-    for i, n in enumerate(st.session_state["nums"]):
-        cols[i].markdown(f"""
+    num_cols = st.columns(6)
+    for i, n in enumerate(current_numbers):
+        num_cols[i].markdown(f"""
             <div style='background:radial-gradient(circle at 30% 30%, #f1c40f, #f39c12); color:black; 
             border-radius:50%; width:55px; height:55px; display:flex; align-items:center; 
             justify-content:center; font-weight:bold; font-size:22px; margin:auto; 
@@ -81,12 +87,11 @@ if st.session_state["nums"]:
         """, unsafe_allow_html=True)
 
 else:
-    # 데이터가 없을 때 안내
     st.info("💡 위 버튼을 눌러 AI 프리미엄 분석을 시작하세요!")
 
-# 7. 하단 차트 (데이터셋 무작위 생성)
+# 7. 하단 차트
 st.divider()
 st.subheader("📊 AI 구간별 데이터 가중치 현황")
 import pandas as pd
-chart_val = [random.randint(20, 70) for _ in range(5)]
-st.bar_chart(pd.DataFrame(chart_val, index=["1-10", "11-20", "21-30", "31-40", "41-45"]))
+chart_data = pd.DataFrame([random.randint(20, 70) for _ in range(5)], index=["1-10", "11-20", "21-30", "31-40", "41-45"])
+st.bar_chart(chart_data)
