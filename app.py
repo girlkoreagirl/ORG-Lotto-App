@@ -5,20 +5,22 @@ import requests
 import pandas as pd
 import time
 
-# --- [1. 앱 설정 및 세션 상태 초기화] ---
-st.set_page_config(page_title="Fortune AI: 프리미엄 데이터 로또", page_icon="💎", layout="centered")
-
-# [핵심] 세션 상태 초기화: 앱 시작 시 데이터 존재 여부 확인 및 초기화
+# --- [1. 최우선 초기화 (Import 직후)] ---
+# 앱 실행 시 세션 상태에 필수 키가 없으면 무조건 초기화합니다.
+if 'lotto_html' not in st.session_state:
+    st.session_state['lotto_html'] = ""
+if 'last_updated' not in st.session_state:
+    st.session_state['last_updated'] = 0
 if 'usage_count' not in st.session_state:
     st.session_state['usage_count'] = 0
 if 'is_admin' not in st.session_state:
     st.session_state['is_admin'] = False
-if 'lotto_html' not in st.session_state:
-    st.session_state['lotto_html'] = "" # 초기 빈 값 설정
-if 'last_updated' not in st.session_state:
-    st.session_state['last_updated'] = str(time.time()) # 초기 타임스탬프
 
-# --- [2. 설정 로드 및 관리자 인증 (사이드바)] ---
+# --- [2. 앱 설정 및 브랜딩] ---
+APP_TITLE = "Fortune AI: 프리미엄 데이터 로또"
+st.set_page_config(page_title=APP_TITLE, page_icon="💎", layout="centered")
+
+# --- [3. 설정 로드 및 관리자 인증 (사이드바)] ---
 try:
     MAX_LIMIT = st.secrets.get("MAX_LIMIT", 5)
     ADMIN_KEY = st.secrets.get("ADMIN_KEY", "admin1234")
@@ -33,23 +35,26 @@ with st.sidebar:
     st.divider()
     
     st.subheader("🔐 관리자 인증")
-    input_key = st.text_input("인증키 입력", type="password")
-    if input_key == ADMIN_KEY:
+    admin_input = st.text_input("인증키 입력", type="password", placeholder="Password...")
+    if admin_input == ADMIN_KEY:
         st.session_state['is_admin'] = True
-        st.success("🔓 관리자 모드 활성화")
-    elif input_key:
-        st.error("암호가 틀렸습니다.")
+        st.success("🔓 관리자 모드 활성화됨")
+    elif admin_input:
+        st.error("인증키가 올바르지 않습니다.")
         st.session_state['is_admin'] = False
 
-    if st.button("🔄 세션 초기화"):
+    st.divider()
+    if st.button("🔄 세션 초기화 (로그아웃)"):
         st.session_state['usage_count'] = 0
         st.session_state['lotto_html'] = ""
+        st.session_state['is_admin'] = False
         st.rerun()
 
-# --- [3. 실시간 데이터 호출] ---
+# --- [4. 실시간 데이터 가져오기 (API)] ---
 @st.cache_data(ttl=3600)
 def get_lotto_data():
     try:
+        # 공식 로또 API (회차 정보는 유동적으로 변경 가능)
         url = "https://www.dhlotto.co.kr/common.do?method=getLottoNumber&drwNo=1154" 
         r = requests.get(url, timeout=5).json()
         if r.get("returnValue") == "success":
@@ -58,8 +63,9 @@ def get_lotto_data():
 
 drw_no, latest_nums, latest_bonus = get_lotto_data()
 
+# 기본 스타일링
 st.markdown("<style>.stApp { background-color: #050505; color: white; }</style>", unsafe_allow_html=True)
-st.title("💎 Fortune AI: 프리미엄 데이터 로또")
+st.title(f"💎 {APP_TITLE}")
 
 if drw_no:
     st.markdown(f"""
@@ -69,14 +75,13 @@ if drw_no:
     </div>
     """, unsafe_allow_html=True)
 
-# --- [4. 추출 버튼 및 로직 처리] ---
+# --- [5. 이용 제한 로직 및 버튼 클릭 처리] ---
 is_allowed = st.session_state['is_admin'] or (st.session_state['usage_count'] < MAX_LIMIT)
 
 if not is_allowed:
-    st.error("🚫 이용 횟수가 소진되었습니다. 관리자 인증이 필요합니다.")
+    st.error("🚫 오늘의 이용 횟수를 모두 소진했습니다. 관리자 인증이 필요합니다.")
 else:
-    # [변경점] 버튼 클릭 시 로직 처리 후 세션 상태에 직접 저장
-    if st.button("✨ AI 프리미엄 번호 추출 START", use_container_width=True, type="primary"):
+    if st.button("✨ AI 프리미엄 분석 시작", use_container_width=True, type="primary"):
         st.session_state['usage_count'] += 1
         
         # 1. 번호 생성
@@ -84,10 +89,10 @@ else:
         main_nums = sorted(res[:6])
         bonus_num = res[6]
         
-        # [강제 리프레시] 매번 새로운 타임스탬프를 키로 사용
-        st.session_state['last_updated'] = str(time.time())
+        # 2. 타임스탬프 갱신 (애니메이션 강제 리프레시용)
+        st.session_state['last_updated'] = time.time()
         
-        # 2. HTML 생성 후 st.session_state['lotto_html']에 직접 저장
+        # 3. HTML 생성 후 세션 상태에 직접 저장
         st.session_state['lotto_html'] = f"""
         <div id='container' style='text-align:center; background:#000; padding:20px; border-radius:20px; border:1px solid #ffd70033;'>
             <canvas id='lottoCanvas' width='400' height='350'></canvas>
@@ -104,8 +109,8 @@ else:
               mainTray=document.getElementById('main-nums'), bonusTray=document.getElementById('bonus-num'), plus=document.getElementById('plus');
         
         let balls=[], mixing=true, centerX=200, centerY=175, radius=150;
-        const res_main = {main_nums};
-        const res_bonus = {bonus_num};
+        const result_main = {main_nums};
+        const result_bonus = {bonus_num};
 
         function getCol(id){{
             if(id<=10) return "#fbc400"; if(id<=20) return "#69c8f2";
@@ -157,12 +162,12 @@ else:
 
         setTimeout(()=>{{
             mixing=false;
-            res_main.forEach((n, i) => {{
+            result_main.forEach((n, i) => {{
                 setTimeout(() => {{ mainTray.appendChild(createBall(n)); }}, i*600);
             }});
             setTimeout(() => {{
                 plus.style.display="block";
-                bonusTray.appendChild(createBall(res_bonus));
+                bonusTray.appendChild(createBall(result_bonus));
                 setTimeout(() => {{ soundFinish.play(); }}, 300);
             }}, 3800);
         }}, 2000);
@@ -171,19 +176,22 @@ else:
         """
         st.rerun()
 
-# --- [5. 조건부 렌더링: 세션 상태에 데이터가 있을 때만 실행] ---
-if st.session_state['lotto_html']:
-    # [핵심] st.session_state['lotto_html']을 직접 가져오고, key에 타임스탬프 적용
-    components.html(
-        st.session_state['lotto_html'], 
-        height=480, 
-        key=f"engine_{st.session_state['last_updated']}"
-    )
+# --- [6. 안전한 조건부 렌더링] ---
+# lotto_html에 내용이 있을 때만 components.html을 실행합니다.
+if st.session_state['lotto_html'] != "":
+    try:
+        components.html(
+            st.session_state['lotto_html'], 
+            height=480, 
+            key=f"engine_{st.session_state['last_updated']}" # 타임스탬프 키로 매번 새로고침 강제
+        )
+    except Exception as e:
+        st.error("애니메이션 로드 중 오류가 발생했습니다.")
 else:
-    st.info("💡 위 버튼을 클릭하여 AI 분석 번호를 확인하세요.")
+    st.info("💡 'AI 프리미엄 분석 시작' 버튼을 눌러 번호를 생성하세요.")
 
-# --- [6. 하단 차트] ---
-st.subheader("📊 AI 구간별 가중치 데이터")
+# --- [7. 하단 통계 섹션] ---
+st.subheader("📊 AI 구간별 분석 가중치")
 chart_data = pd.DataFrame({
     '구간': ['1-10', '11-20', '21-30', '31-40', '41-45'],
     '가중치': [random.randint(20, 50) for _ in range(5)]
