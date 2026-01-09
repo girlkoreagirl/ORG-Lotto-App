@@ -3,22 +3,22 @@ import streamlit.components.v1 as components
 import random
 import requests
 import pandas as pd
+import time
 
-# --- [1. 앱 설정 및 브랜딩] ---
+# --- [1. 앱 설정 및 세션 상태 초기화] ---
 st.set_page_config(page_title="Fortune AI: 프리미엄 데이터 로또", page_icon="💎", layout="centered")
 
-# --- [2. 세션 상태(Session State) 초기화] ---
-# 앱이 리프레시되어도 유지되어야 하는 데이터들을 세션에 저장합니다.
+# [핵심] 세션 상태 초기화: 앱 시작 시 데이터 존재 여부 확인 및 초기화
 if 'usage_count' not in st.session_state:
-    st.session_state.usage_count = 0
+    st.session_state['usage_count'] = 0
 if 'is_admin' not in st.session_state:
-    st.session_state.is_admin = False
+    st.session_state['is_admin'] = False
 if 'lotto_html' not in st.session_state:
-    st.session_state.lotto_html = ""  # 생성된 HTML 저장소
-if 'run_id' not in st.session_state:
-    st.session_state.run_id = 0      # 컴포넌트 강제 갱신용 고유 ID
+    st.session_state['lotto_html'] = "" # 초기 빈 값 설정
+if 'last_updated' not in st.session_state:
+    st.session_state['last_updated'] = str(time.time()) # 초기 타임스탬프
 
-# --- [3. 설정 로드 및 관리자 인증] ---
+# --- [2. 설정 로드 및 관리자 인증 (사이드바)] ---
 try:
     MAX_LIMIT = st.secrets.get("MAX_LIMIT", 5)
     ADMIN_KEY = st.secrets.get("ADMIN_KEY", "admin1234")
@@ -29,25 +29,24 @@ except:
 with st.sidebar:
     st.header("💎 HAN31 창작소")
     st.write(f"이용 한도: **{MAX_LIMIT}회**")
-    st.write(f"현재 이용: **{st.session_state.usage_count}회**")
+    st.write(f"현재 이용: **{st.session_state['usage_count']}회**")
     st.divider()
     
     st.subheader("🔐 관리자 인증")
     input_key = st.text_input("인증키 입력", type="password")
     if input_key == ADMIN_KEY:
-        st.session_state.is_admin = True
-        st.success("🔓 관리자 모드 활성화됨")
+        st.session_state['is_admin'] = True
+        st.success("🔓 관리자 모드 활성화")
     elif input_key:
-        st.error("키가 일치하지 않습니다.")
-        st.session_state.is_admin = False
+        st.error("암호가 틀렸습니다.")
+        st.session_state['is_admin'] = False
 
     if st.button("🔄 세션 초기화"):
-        st.session_state.usage_count = 0
-        st.session_state.lotto_html = ""
-        st.session_state.run_id = 0
+        st.session_state['usage_count'] = 0
+        st.session_state['lotto_html'] = ""
         st.rerun()
 
-# --- [4. 실시간 데이터 호출 (API)] ---
+# --- [3. 실시간 데이터 호출] ---
 @st.cache_data(ttl=3600)
 def get_lotto_data():
     try:
@@ -59,7 +58,6 @@ def get_lotto_data():
 
 drw_no, latest_nums, latest_bonus = get_lotto_data()
 
-# 스타일링
 st.markdown("<style>.stApp { background-color: #050505; color: white; }</style>", unsafe_allow_html=True)
 st.title("💎 Fortune AI: 프리미엄 데이터 로또")
 
@@ -71,26 +69,26 @@ if drw_no:
     </div>
     """, unsafe_allow_html=True)
 
-# --- [5. 버튼 클릭 및 로직 실행 순서 보장] ---
-is_allowed = st.session_state.is_admin or (st.session_state.usage_count < MAX_LIMIT)
+# --- [4. 추출 버튼 및 로직 처리] ---
+is_allowed = st.session_state['is_admin'] or (st.session_state['usage_count'] < MAX_LIMIT)
 
 if not is_allowed:
-    st.error("🚫 이용 횟수가 소진되었습니다. 관리자에게 문의하세요.")
+    st.error("🚫 이용 횟수가 소진되었습니다. 관리자 인증이 필요합니다.")
 else:
-    # 버튼 클릭 시 즉시 데이터 생성 및 HTML 빌드
+    # [변경점] 버튼 클릭 시 로직 처리 후 세션 상태에 직접 저장
     if st.button("✨ AI 프리미엄 번호 추출 START", use_container_width=True, type="primary"):
-        # 1. 횟수 증가
-        st.session_state.usage_count += 1
-        # 2. 고유 실행 ID 증가 (애니메이션 리셋용)
-        st.session_state.run_id += 1
+        st.session_state['usage_count'] += 1
         
-        # 3. 번호 생성
-        nums = random.sample(range(1, 46), 7)
-        main_nums = sorted(nums[:6])
-        bonus_num = nums[6]
+        # 1. 번호 생성
+        res = random.sample(range(1, 46), 7)
+        main_nums = sorted(res[:6])
+        bonus_num = res[6]
         
-        # 4. HTML 생성 후 세션에 저장 (즉시 생성 보장)
-        st.session_state.lotto_html = f"""
+        # [강제 리프레시] 매번 새로운 타임스탬프를 키로 사용
+        st.session_state['last_updated'] = str(time.time())
+        
+        # 2. HTML 생성 후 st.session_state['lotto_html']에 직접 저장
+        st.session_state['lotto_html'] = f"""
         <div id='container' style='text-align:center; background:#000; padding:20px; border-radius:20px; border:1px solid #ffd70033;'>
             <canvas id='lottoCanvas' width='400' height='350'></canvas>
             <div id="tray" style="height:70px; background:linear-gradient(to bottom, #111, #000); border:1px solid #444; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:8px;">
@@ -106,8 +104,8 @@ else:
               mainTray=document.getElementById('main-nums'), bonusTray=document.getElementById('bonus-num'), plus=document.getElementById('plus');
         
         let balls=[], mixing=true, centerX=200, centerY=175, radius=150;
-        const result_main = {main_nums};
-        const result_bonus = {bonus_num};
+        const res_main = {main_nums};
+        const res_bonus = {bonus_num};
 
         function getCol(id){{
             if(id<=10) return "#fbc400"; if(id<=20) return "#69c8f2";
@@ -159,37 +157,33 @@ else:
 
         setTimeout(()=>{{
             mixing=false;
-            result_main.forEach((n, i) => {{
+            res_main.forEach((n, i) => {{
                 setTimeout(() => {{ mainTray.appendChild(createBall(n)); }}, i*600);
             }});
             setTimeout(() => {{
                 plus.style.display="block";
-                bonusTray.appendChild(createBall(result_bonus));
+                bonusTray.appendChild(createBall(res_bonus));
                 setTimeout(() => {{ soundFinish.play(); }}, 300);
             }}, 3800);
         }}, 2000);
         </script>
         <style>@keyframes pop{{from{{transform:scale(0);}}to{{transform:scale(1);}}}}</style>
         """
-        # 화면 강제 갱신
         st.rerun()
 
-# --- [6. 조건부 렌더링 (엄격한 체크)] ---
-# HTML이 존재하고 이용이 허가되었을 때만 출력
-if st.session_state.lotto_html != "" and is_allowed:
-    try:
-        components.html(
-            st.session_state.lotto_html, 
-            height=480, 
-            key=f"engine_v{st.session_state.run_id}" # 2회차 멈춤 버그 수정용 유니크 키
-        )
-    except Exception as e:
-        st.error("애니메이션 로딩 중 오류가 발생했습니다.")
-elif st.session_state.usage_count == 0:
-    st.info("💡 위 버튼을 클릭하여 AI 분석 번호를 추출하세요.")
+# --- [5. 조건부 렌더링: 세션 상태에 데이터가 있을 때만 실행] ---
+if st.session_state['lotto_html']:
+    # [핵심] st.session_state['lotto_html']을 직접 가져오고, key에 타임스탬프 적용
+    components.html(
+        st.session_state['lotto_html'], 
+        height=480, 
+        key=f"engine_{st.session_state['last_updated']}"
+    )
+else:
+    st.info("💡 위 버튼을 클릭하여 AI 분석 번호를 확인하세요.")
 
-# --- [7. 통계 섹션] ---
-st.subheader("📊 AI 구간별 분석 데이터")
+# --- [6. 하단 차트] ---
+st.subheader("📊 AI 구간별 가중치 데이터")
 chart_data = pd.DataFrame({
     '구간': ['1-10', '11-20', '21-30', '31-40', '41-45'],
     '가중치': [random.randint(20, 50) for _ in range(5)]
