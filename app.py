@@ -4,125 +4,94 @@ import random
 import requests
 import pandas as pd
 
-# --- [1. 앱 설정 및 초기화] ---
-APP_TITLE = "Fortune AI: 프리미엄 데이터 로또"
-APP_ICON = "💎"
-DEVELOPER_NAME = "HAN31 창작소" 
+# --- [1. 앱 설정 및 브랜딩] ---
+st.set_page_config(page_title="Fortune AI: 프리미엄 데이터 로또", page_icon="💎", layout="centered")
 
-# lotto_html 변수 초기화 (코드 시작 시점)
-lotto_html = ""
-
-st.set_page_config(page_title=APP_TITLE, page_icon=APP_ICON, layout="centered")
-
-# --- [2. 세션 상태 관리] ---
+# --- [2. 세션 상태(Session State) 초기화] ---
+# 앱이 리프레시되어도 유지되어야 하는 데이터들을 세션에 저장합니다.
 if 'usage_count' not in st.session_state:
     st.session_state.usage_count = 0
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
+if 'lotto_html' not in st.session_state:
+    st.session_state.lotto_html = ""  # 생성된 HTML 저장소
 if 'run_id' not in st.session_state:
-    st.session_state.run_id = 0  # 애니메이션 강제 갱신용 ID
+    st.session_state.run_id = 0      # 컴포넌트 강제 갱신용 고유 ID
 
-# --- [3. 설정값 로드 및 예외 처리] ---
+# --- [3. 설정 로드 및 관리자 인증] ---
 try:
     MAX_LIMIT = st.secrets.get("MAX_LIMIT", 5)
     ADMIN_KEY = st.secrets.get("ADMIN_KEY", "admin1234")
-except Exception as e:
+except:
     MAX_LIMIT = 5
     ADMIN_KEY = "admin1234"
-    st.warning("설정 파일을 불러오지 못해 기본값으로 작동합니다.")
 
-# --- [4. 관리자 인증 시스템 (사이드바 맨 아래)] ---
 with st.sidebar:
-    st.header(f"{APP_ICON} {DEVELOPER_NAME}")
-    st.write(f"일반 이용 한도: **{MAX_LIMIT}회**")
-    st.write(f"현재 이용 횟수: **{st.session_state.usage_count}회**")
+    st.header("💎 HAN31 창작소")
+    st.write(f"이용 한도: **{MAX_LIMIT}회**")
+    st.write(f"현재 이용: **{st.session_state.usage_count}회**")
     st.divider()
     
-    # 관리자 인증 칸
-    st.subheader("🔐 시스템 제어")
-    input_key = st.text_input("관리자 인증키 입력", type="password", placeholder="비밀번호를 입력하세요")
-    
+    st.subheader("🔐 관리자 인증")
+    input_key = st.text_input("인증키 입력", type="password")
     if input_key == ADMIN_KEY:
         st.session_state.is_admin = True
         st.success("🔓 관리자 모드 활성화됨")
-        st.caption("이용 제한 없이 무제한으로 분석이 가능합니다.")
     elif input_key:
-        st.error("암호가 일치하지 않습니다.")
+        st.error("키가 일치하지 않습니다.")
         st.session_state.is_admin = False
 
-    st.divider()
     if st.button("🔄 세션 초기화"):
         st.session_state.usage_count = 0
+        st.session_state.lotto_html = ""
         st.session_state.run_id = 0
         st.rerun()
 
-# --- [5. 실시간 데이터 가져오기 (예외 처리 포함)] ---
+# --- [4. 실시간 데이터 호출 (API)] ---
 @st.cache_data(ttl=3600)
 def get_lotto_data():
     try:
-        # 최신 회차 API 호출
-        url = "https://www.dhlotto.co.kr/common.do?method=getLottoNumber&drwNo=1153" 
+        url = "https://www.dhlotto.co.kr/common.do?method=getLottoNumber&drwNo=1154" 
         r = requests.get(url, timeout=5).json()
         if r.get("returnValue") == "success":
             return r["drwNo"], [r[f"drwtNo{i}"] for i in range(1, 7)], r["bnusNo"]
-    except Exception as e:
-        # 에러 발생 시 로그만 남기고 None 반환하여 앱 멈춤 방지
-        print(f"Data Fetch Error: {e}")
-    return None, None, None
+    except: return None, None, None
 
-try:
-    drw_no, latest_nums, latest_bonus = get_lotto_data()
-except:
-    drw_no, latest_nums, latest_bonus = None, None, None
+drw_no, latest_nums, latest_bonus = get_lotto_data()
 
-# --- [6. UI 스타일링 및 헤더] ---
-st.markdown("""
-    <style>
-    .stApp { background-color: #050505; color: white; }
-    .latest-box {
-        background: #111; padding: 15px; border-radius: 12px;
-        border: 1px solid #333; margin-bottom: 20px; text-align: center;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title(f"{APP_ICON} {APP_TITLE}")
+# 스타일링
+st.markdown("<style>.stApp { background-color: #050505; color: white; }</style>", unsafe_allow_html=True)
+st.title("💎 Fortune AI: 프리미엄 데이터 로또")
 
 if drw_no:
     st.markdown(f"""
-    <div class="latest-box">
-        <small style='color: #888;'>공식 {drw_no}회 당첨 번호</small><br>
-        <b style='font-size: 20px; color: #ffd700;'>{' . '.join(map(str, latest_nums))} <span style='color:white'>+</span> {latest_bonus}</b>
+    <div style="background:#111; padding:15px; border-radius:12px; border:1px solid #333; margin-bottom:20px; text-align:center;">
+        <small style='color:#888;'>공식 {drw_no}회 당첨 번호</small><br>
+        <b style='font-size:20px; color:#ffd700;'>{' . '.join(map(str, latest_nums))} + {latest_bonus}</b>
     </div>
     """, unsafe_allow_html=True)
 
-# --- [7. 분석 시작 로직 및 애니메이션 제어] ---
-# 제한 확인 (관리자라면 무조건 통과)
+# --- [5. 버튼 클릭 및 로직 실행 순서 보장] ---
 is_allowed = st.session_state.is_admin or (st.session_state.usage_count < MAX_LIMIT)
 
 if not is_allowed:
-    st.error("🚫 오늘의 분석 이용 횟수가 모두 소진되었습니다.")
-    st.info("관리자 인증을 하거나 세션을 초기화해주세요.")
+    st.error("🚫 이용 횟수가 소진되었습니다. 관리자에게 문의하세요.")
 else:
-    # 이용 가능한 경우에만 버튼 활성화
+    # 버튼 클릭 시 즉시 데이터 생성 및 HTML 빌드
     if st.button("✨ AI 프리미엄 번호 추출 START", use_container_width=True, type="primary"):
-        try:
-            st.session_state.usage_count += 1
-            st.session_state.run_id += 1  # Key를 변경하여 애니메이션 재생 유도
-        except Exception as e:
-            st.error("분석 엔진 작동 중 오류가 발생했습니다.")
-
-# 이용 제한에 걸리지 않았고, 실행 버튼이 한 번이라도 눌렸을 때만 컴포넌트 호출
-if is_allowed and st.session_state.run_id > 0:
-    try:
-        # 번호 생성 로직
+        # 1. 횟수 증가
+        st.session_state.usage_count += 1
+        # 2. 고유 실행 ID 증가 (애니메이션 리셋용)
+        st.session_state.run_id += 1
+        
+        # 3. 번호 생성
         nums = random.sample(range(1, 46), 7)
         main_nums = sorted(nums[:6])
         bonus_num = nums[6]
-
-        # lotto_html 문자열 구성
-        lotto_html = f"""
-        <div id='container' style='text-align:center; background:#000; padding:20px; border-radius:20px; border: 1px solid #ffd70033;'>
+        
+        # 4. HTML 생성 후 세션에 저장 (즉시 생성 보장)
+        st.session_state.lotto_html = f"""
+        <div id='container' style='text-align:center; background:#000; padding:20px; border-radius:20px; border:1px solid #ffd70033;'>
             <canvas id='lottoCanvas' width='400' height='350'></canvas>
             <div id="tray" style="height:70px; background:linear-gradient(to bottom, #111, #000); border:1px solid #444; border-radius:12px; display:flex; align-items:center; justify-content:center; gap:8px;">
                 <div id="main-nums" style="display:flex; gap:8px;"></div>
@@ -130,14 +99,12 @@ if is_allowed and st.session_state.run_id > 0:
                 <div id="bonus-num" style="display:flex;"></div>
             </div>
         </div>
-
         <script>
         const soundPop = new Audio('https://www.soundjay.com/buttons/sounds/button-21.mp3');
         const soundFinish = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3');
-
         const canvas=document.getElementById('lottoCanvas'), ctx=canvas.getContext('2d'),
               mainTray=document.getElementById('main-nums'), bonusTray=document.getElementById('bonus-num'), plus=document.getElementById('plus');
-
+        
         let balls=[], mixing=true, centerX=200, centerY=175, radius=150;
         const result_main = {main_nums};
         const result_bonus = {bonus_num};
@@ -204,20 +171,27 @@ if is_allowed and st.session_state.run_id > 0:
         </script>
         <style>@keyframes pop{{from{{transform:scale(0);}}to{{transform:scale(1);}}}}</style>
         """
-        
-        # [핵심] key 파라미터에 run_id를 넣어 매 실행 시 컴포넌트를 강제 재생성함 (버그 수정)
-        components.html(lotto_html, height=480, key=f"lotto_engine_{st.session_state.run_id}")
+        # 화면 강제 갱신
+        st.rerun()
 
+# --- [6. 조건부 렌더링 (엄격한 체크)] ---
+# HTML이 존재하고 이용이 허가되었을 때만 출력
+if st.session_state.lotto_html != "" and is_allowed:
+    try:
+        components.html(
+            st.session_state.lotto_html, 
+            height=480, 
+            key=f"engine_v{st.session_state.run_id}" # 2회차 멈춤 버그 수정용 유니크 키
+        )
     except Exception as e:
-        st.error("애니메이션 렌더링 중 오류가 발생했습니다.")
+        st.error("애니메이션 로딩 중 오류가 발생했습니다.")
+elif st.session_state.usage_count == 0:
+    st.info("💡 위 버튼을 클릭하여 AI 분석 번호를 추출하세요.")
 
-# --- [8. 통계 섹션 (예외 처리 포함)] ---
-try:
-    st.subheader("📊 AI 분석 가중치 현황")
-    chart_data = pd.DataFrame({
-        '구간': ['1-10', '11-20', '21-30', '31-40', '41-45'],
-        '가중치': [random.randint(20, 50) for _ in range(5)]
-    })
-    st.bar_chart(chart_data.set_index('구간'))
-except:
-    st.write("통계 데이터를 표시할 수 없습니다.")
+# --- [7. 통계 섹션] ---
+st.subheader("📊 AI 구간별 분석 데이터")
+chart_data = pd.DataFrame({
+    '구간': ['1-10', '11-20', '21-30', '31-40', '41-45'],
+    '가중치': [random.randint(20, 50) for _ in range(5)]
+})
+st.bar_chart(chart_data.set_index('구간'))
