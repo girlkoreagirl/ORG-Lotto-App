@@ -6,15 +6,15 @@ import pandas as pd
 # [1] 시스템 설정 - 안정성 최우선
 st.set_page_config(page_title="Fortune AI", layout="centered")
 
-# [2] 데이터 초기화
+# [2] 데이터 초기화 (에러 방지용)
 if "nums" not in st.session_state:
-    st.session_state.nums = [2, 27, 28, 31, 41, 42]
+    st.session_state["nums"] = [14, 18, 23, 35, 38, 40]
 if "bonus" not in st.session_state:
-    st.session_state.bonus = 45
+    st.session_state["bonus"] = 29
 if "rid" not in st.session_state:
-    st.session_state.rid = 0
+    st.session_state["rid"] = 0
 
-# [3] CSS: 왼쪽 이미지의 와이드 골드 버튼 디자인 완벽 재현
+# [3] CSS 디자인 (황금색 버튼 및 프리미엄 블랙 테마 유지)
 st.markdown("""
 <style>
     .main { background-color: #0e1117 !important; }
@@ -25,21 +25,19 @@ st.markdown("""
         font-weight: bold !important;
         border-radius: 30px !important;
         width: 100% !important;
-        max-width: 600px !important;
+        max-width: 500px !important;
         height: 60px !important;
         border: 2px solid #fff !important;
         font-size: 20px !important;
-        box-shadow: 0 6px 20px rgba(241, 196, 15, 0.4) !important;
-        transition: 0.3s;
+        box-shadow: 0 4px 15px rgba(241, 196, 15, 0.5) !important;
     }
-    .stButton>button:hover { transform: scale(1.02); }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align:center; color:white; font-size:2.8em;'>💎 Fortune AI: 프리미엄 데이터 로또</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center; color:white;'>💎 Fortune AI: 프리미엄 데이터 로또</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:#888;'>Developed by HAN31 창작소</p>", unsafe_allow_html=True)
 
-# [4] 결과 공 HTML 조각 생성 (f-string 충돌 방지용)
+# [4] 결과 공 HTML 조립 로직 (6개 + 보너스 1개)
 def get_c(n):
     if n<=10: return "#f1c40f"
     elif n<=20: return "#3498db"
@@ -47,70 +45,63 @@ def get_c(n):
     elif n<=40: return "#95a5a6"
     else: return "#2ecc71"
 
-b_list_h = ""
-for n in st.session_state.nums:
-    b_list_h += '<div style="width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,'+get_c(n)+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1.5px solid white;margin:0 4px;box-shadow:0 3px 6px rgba(0,0,0,0.5);">'+str(n)+'</div>'
+nums_html = ""
+for n in st.session_state["nums"]:
+    nums_html += '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,'+get_c(n)+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1.5px solid white;margin:0 2px;box-shadow:0 2px 5px rgba(0,0,0,0.5);">'+str(n)+'</div>'
 
-bonus_h = '<div style="width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,'+get_c(st.session_state.bonus)+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1.5px solid white;box-shadow:0 3px 6px rgba(0,0,0,0.5);">'+str(st.session_state.bonus)+'</div>'
+bonus_html = '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,'+get_c(st.session_state["bonus"])+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1.5px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.5);">'+str(st.session_state["bonus"])+'</div>'
 
-# [5] 물리 엔진 HTML (공이 하나씩 생성되는 순차 소환 로직 반영)
-html_template = """
-<div style="background:#0e1117; border: 1px solid #333; border-radius:25px; padding:30px; display:flex; flex-direction:column; align-items:center; box-shadow: 0 15px 40px rgba(0,0,0,0.6);">
-    <canvas id="lotto" width="450" height="380" style="background:transparent;"></canvas>
-    <div style="color:#666; font-size:11px; margin-top:15px; letter-spacing:1px; font-weight:bold;">AI PREDICTION RESULT</div>
-    <div style="margin-top:8px; background:linear-gradient(180deg,#222,#000); padding:18px 45px; border-radius:60px; border:1px solid #444; display:flex; gap:10px; align-items:center; box-shadow: inset 0 2px 15px rgba(0,0,0,0.7);">
-        REPLACE_BALLS <span style="color:white; font-weight:bold; font-size:24px; margin:0 8px;">+</span> REPLACE_BONUS
+# [5] 물리 엔진 HTML (공이 하나씩 확실히 나오도록 타이밍 수정)
+html_tmpl = """
+<div style="background:#0e1117;border:1px solid #333;border-radius:20px;padding:30px;display:flex;flex-direction:column;align-items:center;box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <canvas id="l" width="400" height="350"></canvas>
+    <div style="color:#666; font-size:10px; margin-top:15px; letter-spacing:1px; font-weight:bold;">AI PREDICTION RESULT</div>
+    <div style="margin-top:5px;background:linear-gradient(180deg,#222,#000);padding:15px 40px;border-radius:50px;border:1px solid #444;display:flex;gap:12px;align-items:center;">
+        NUM_H <span style="color:white;font-weight:bold;font-size:20px;">+</span> BON_H
     </div>
     <audio autoplay><source src="https://www.soundjay.com/misc/sounds/bell-ringing-04.mp3" type="audio/mp3"></audio>
 </div>
 <script>
-    const canvas = document.getElementById("lotto");
-    const ctx = canvas.getContext("2d");
-    const centerX = 225, centerY = 190, radius = 170;
+    const c=document.getElementById("l"), x=c.getContext("2d");
     const allBalls = [];
     const activeBalls = [];
     let spawnTimer = 0;
 
-    // 45개 공 데이터를 미리 준비
-    const colors = ["#f1c40f", "#3498db", "#e74c3c", "#95a5a6", "#2ecc71"];
-    for(let i=1; i<=45; i++){
+    // 45개 전체 공 데이터 준비
+    const colors=['#f1c40f','#3498db','#e74c3c','#95a5a6','#2ecc71'];
+    for(let i=1;i<=45;i++){
         allBalls.push({
-            x: centerX, y: centerY,
-            vx: (Math.random()-0.5)*18, vy: (Math.random()-0.5)*18,
-            r: 13, num: i, col: colors[Math.floor((i-1)/10)] || colors[4]
+            x:200, y:175,
+            vx:(Math.random()-0.5)*14, vy:(Math.random()-0.5)*14,
+            r:12, num:i, col: i<=10?colors[0]:i<=20?colors[1]:i<=30?colors[2]:i<=40?colors[3]:colors[4]
         });
     }
 
     function draw(){
-        ctx.clearRect(0,0,450,380);
+        x.clearRect(0,0,400,350);
         
-        // 원형 추출기 배경
-        ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
-        ctx.fillStyle = "#111"; ctx.fill(); ctx.strokeStyle = "#444"; ctx.lineWidth = 5; ctx.stroke();
+        // 원형 추출기 테두리 및 배경
+        x.beginPath(); x.arc(200,175,150,0,Math.PI*2); x.fillStyle="#111"; x.fill(); x.strokeStyle="#444"; x.lineWidth=4; x.stroke();
 
-        // [핵심] 순차 소환 로직: 3프레임마다 하나씩 소환 (하나씩 톡톡 튀어나오는 효과)
-        if(activeBalls.length < 45 && spawnTimer % 3 === 0){
+        // [순차 소환 강화] 6프레임마다 공 하나씩 소환 (속도 조절로 하나씩 나오는 느낌 강조)
+        if(activeBalls.length < 45 && spawnTimer % 6 === 0){
             activeBalls.push(allBalls[activeBalls.length]);
         }
         spawnTimer++;
 
-        activeBalls.forEach(b => {
-            b.x += b.vx; b.y += b.vy;
-            const dist = Math.sqrt((b.x-centerX)**2 + (b.y-centerY)**2);
-            if(dist + b.r > radius){
-                const nx = (b.x-centerX)/dist, ny = (b.y-centerY)/dist;
-                const dot = b.vx*nx + b.vy*ny;
-                b.vx -= 2*dot*nx; b.vy -= 2*dot*ny;
-                b.x = centerX + nx*(radius-b.r);
-                b.y = centerY + ny*(radius-b.r);
+        activeBalls.forEach(b=>{
+            b.x+=b.vx; b.y+=b.vy;
+            const d=Math.sqrt((b.x-200)**2+(b.y-175)**2);
+            if(d+b.r>150){
+                const nx=(b.x-200)/d, ny=(b.y-175)/d, dot=b.vx*nx+b.vy*ny;
+                b.vx-=2*dot*nx; b.vy-=2*dot*ny;
+                b.x=200+nx*(150-b.r); b.y=175+ny*(150-b.r);
             }
-            // 공 렌더링 (입체감 + 숫자)
-            ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
-            let g = ctx.createRadialGradient(b.x-4, b.y-4, 2, b.x, b.y, b.r);
-            g.addColorStop(0, "#fff"); g.addColorStop(1, b.col);
-            ctx.fillStyle = g; ctx.fill();
-            ctx.fillStyle = "black"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-            ctx.fillText(b.num, b.x, b.y+4);
+            x.beginPath(); x.arc(b.x,b.y,b.r,0,Math.PI*2);
+            let g=x.createRadialGradient(b.x-4,b.y-4,2,b.x,b.y,b.r);
+            g.addColorStop(0,"#fff"); g.addColorStop(1,b.col);
+            x.fillStyle=g; x.fill();
+            x.fillStyle="black"; x.font="bold 10px Arial"; x.textAlign="center"; x.fillText(b.num,b.x,b.y+4);
         });
         requestAnimationFrame(draw);
     }
@@ -118,24 +109,23 @@ html_template = """
 </script>
 """
 
-# HTML 안전 결합
-final_html = html_template.replace("REPLACE_BALLS", b_list_h).replace("REPLACE_BONUS", bonus_h)
+# HTML 안전 치환
+final_html = html_tmpl.replace("NUM_H", nums_html).replace("BON_H", bonus_html)
 
-# [6] 에러 원천 차단 (key를 제거하여 런타임 TypeError 방지)
-components.html(final_html, height=580)
+# [6] 에러 원천 차단 (key 인자를 제거하여 TypeError 방지)
+components.html(final_html, height=550)
 
-# [7] 하단 분석 버튼
+# [7] 실행 버튼
 if st.button("✨ 분석 완료! (다시 시도)"):
-    res = random.sample(range(1, 46), 7)
-    st.session_state.nums = sorted(res[:6])
-    st.session_state.bonus = res[6]
-    st.session_state.rid += 1
+    r = random.sample(range(1, 46), 7)
+    st.session_state["nums"] = sorted(r[:6])
+    st.session_state["bonus"] = r[6]
+    st.session_state["rid"] += 1
     st.rerun()
 
-# [8] 하단 차트 (사진과 일치하는 데이터)
+# [8] 하단 차트
 st.divider()
 st.markdown("### 📊 번호 구간별 분석 가중치")
-chart_df = pd.DataFrame([40, 42, 28, 23, 35], index=["1-10", "11-20", "21-30", "31-40", "41-45"], columns=["가중치"])
-st.bar_chart(chart_df)
-
+val = [random.randint(15, 50) for _ in range(5)]
+st.bar_chart(pd.DataFrame(val, index=["1-10", "11-20", "21-30", "31-40", "41-45"]))
 st.info("💡 버튼을 누르면 물리 엔진 시뮬레이션과 함께 분석 사운드가 재생됩니다.")
