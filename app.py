@@ -1,9 +1,9 @@
- import streamlit as st
+import streamlit as st
 import streamlit.components.v1 as components
 import random
 import pandas as pd
 
-# [1] 시스템 설정
+# [1] 시스템 설정 - 빈칸 없는 최상단 배치
 st.set_page_config(page_title="Fortune AI", layout="centered")
 
 # [2] 데이터 초기화
@@ -14,12 +14,12 @@ if "bonus" not in st.session_state:
 if "rid" not in st.session_state:
     st.session_state.rid = 0
 
-# [3] CSS: 우측 이미지의 작고 빛나는 버튼 및 레이아웃 재현
+# [3] CSS: 우측 이미지의 작고 빛나는 버튼 및 레이아웃 완벽 재현
 st.markdown("""
 <style>
     .main { background-color: #0e1117 !important; }
     
-    /* 상단 장식 바 */
+    /* 상단 장식 바 (우측 이미지 스타일) */
     .top-divider {
         width: 100%;
         height: 35px;
@@ -29,7 +29,7 @@ st.markdown("""
         margin-bottom: 30px;
     }
 
-    /* 우측 이미지 스타일의 작고 빛나는 버튼 */
+    /* 우측 이미지 스타일의 작고 빛나는 버튼 (Glow 효과) */
     div[data-testid="stVerticalBlock"] > div:has(div.stButton) {
         text-align: center;
         display: flex;
@@ -40,17 +40,17 @@ st.markdown("""
         color: black !important;
         font-weight: bold !important;
         border-radius: 40px !important;
-        padding: 10px 40px !important;
+        padding: 10px 45px !important;
         width: auto !important;
         height: 50px !important;
         border: 2px solid #fff !important;
         font-size: 16px !important;
-        box-shadow: 0 0 20px rgba(241, 196, 15, 0.6) !important;
+        box-shadow: 0 0 20px rgba(241, 196, 15, 0.7) !important;
         transition: 0.3s;
     }
     .stButton>button:hover {
         transform: scale(1.05);
-        box-shadow: 0 0 30px rgba(241, 196, 15, 0.9) !important;
+        box-shadow: 0 0 30px rgba(241, 196, 15, 1.0) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -59,10 +59,10 @@ st.markdown("""
 st.markdown("<h1 style='text-align:center; color:white; font-size:2.5em; margin-bottom:0;'>💎 Fortune AI: 프리미엄 데이터 로또</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:#888; margin-top:0;'>Developed by HAN31 창작소</p>", unsafe_allow_html=True)
 
-# 상단 회색 바 (우측 이미지 재현)
+# 상단 회색 데코 바
 st.markdown('<div class="top-divider"></div>', unsafe_allow_html=True)
 
-# [4] 결과 공 HTML 조각
+# [4] 결과 공 HTML 조립 로직
 def get_c(n):
     if n<=10: return "#f1c40f"
     elif n<=20: return "#3498db"
@@ -74,9 +74,9 @@ b_list_h = ""
 for n in st.session_state.nums:
     b_list_h += '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,'+get_c(n)+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1.5px solid white;margin:0 4px;box-shadow:0 3px 6px rgba(0,0,0,0.5);">'+str(n)+'</div>'
 
-bonus_h = '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,'+get_c(st.session_state.bonus)+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1.5px solid white;box-shadow:0 3px 6px rgba(0,0,0,0.5);">'+str(st.session_state.bonus)+'</div>'
+bonus_h = '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff,'+get_c(st.session_state.bonus)+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1px solid white;box-shadow:0 3px 6px rgba(0,0,0,0.5);">'+str(st.session_state.bonus)+'</div>'
 
-# [5] 우측 이미지 스타일의 캔버스 및 결과바 (통합 컴포넌트)
+# [5] 애니메이션 템플릿 (하나씩 확실히 튀어나오는 순차 소환 엔진)
 html_animation = """
 <div style="display:flex; flex-direction:column; align-items:center; font-family:sans-serif;">
     <canvas id="lotto" width="450" height="380" style="background:transparent;"></canvas>
@@ -107,7 +107,8 @@ html_animation = """
         ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
         ctx.fillStyle = "#111"; ctx.fill(); ctx.strokeStyle = "#444"; ctx.lineWidth = 5; ctx.stroke();
 
-        if(pool.length > 0 && frameCount % 6 === 0){
+        // [순차 소환] 7프레임마다 공 하나씩 중앙에서 톡톡 배출
+        if(pool.length > 0 && frameCount % 7 === 0){
             activeBalls.push(pool.shift());
         }
         frameCount++;
@@ -136,9 +137,11 @@ html_animation = """
 """
 
 final_html = html_animation.replace("REPLACE_BALLS", b_list_h).replace("REPLACE_BONUS", bonus_h)
+
+# [6] 에러 원천 차단 (TypeError 방지를 위해 key 인자 제거)
 components.html(final_html, height=580)
 
-# [6] 작고 빛나는 버튼 (우측 이미지 핵심)
+# [7] 작고 빛나는 알약 버튼 (우측 이미지 스타일)
 if st.button("✨ 분석 완료! (다시 시도)"):
     res = random.sample(range(1, 46), 7)
     st.session_state.nums = sorted(res[:6])
@@ -146,7 +149,7 @@ if st.button("✨ 분석 완료! (다시 시도)"):
     st.session_state.rid += 1
     st.rerun()
 
-# [7] 하단 차트
+# [8] 하단 차트
 st.divider()
 st.markdown("### 📊 번호 구간별 분석 가중치")
 chart_df = pd.DataFrame([40, 42, 28, 23, 35], index=["1-10", "11-20", "21-30", "31-40", "41-45"], columns=["가중치"])
