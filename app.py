@@ -1,100 +1,156 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import random
-import time
 
-# 1. 페이지 설정 (무조건 최상단)
+# 1. 페이지 설정 및 배경 디자인
 st.set_page_config(page_title="Fortune AI", page_icon="💎", layout="centered")
 
-# 2. [폭발 방지] 초기화 - 절대 None이 될 수 없게 빈 글자("")를 미리 박아둡니다.
-if "nums" not in st.session_state: st.session_state.nums = []
-if "html_code" not in st.session_state: st.session_state.html_code = ""
+# CSS: 사진 속의 고급스러운 블랙 배경과 황금색 버튼 스타일 구현
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    div[data-testid="stVerticalBlock"] > div:has(div.stButton) {
+        text-align: center;
+    }
+    .stButton>button {
+        background: linear-gradient(to bottom, #f1c40f, #d4ac0d);
+        color: black !important;
+        font-weight: bold;
+        border-radius: 30px;
+        width: 100%;
+        max-width: 500px;
+        height: 55px;
+        border: none;
+        font-size: 18px;
+        box-shadow: 0 4px 15px rgba(241, 196, 15, 0.4);
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 20px #f1c40f;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 2. 데이터 초기화 (처음 실행 시 기본 번호 설정)
+if "nums" not in st.session_state: st.session_state.nums = [6, 12, 15, 19, 30, 39]
+if "bonus" not in st.session_state: st.session_state.bonus = 33
 if "run_id" not in st.session_state: st.session_state.run_id = 0
 
-st.title("💎 Fortune AI: 프리미엄 로또")
-st.write(f"현재 시간: 2026-01-10 11:55 AM | 무결점 버전 소환 완료!")
+# 제목 영역
+st.markdown("<h1 style='text-align: center; color: white; margin-bottom: 0;'>💎 Fortune AI: 프리미엄 데이터 로또</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #888; font-size: 0.8em;'>Developed by HAN31 창작소</p>", unsafe_allow_html=True)
 
-# 3. 분석 시작 버튼
-if st.button("🚀 AI 프리미엄 분석 시작", use_container_width=True, type="primary"):
-    # 번호 생성
-    st.session_state.nums = sorted(random.sample(range(1, 46), 6))
-    st.session_state.run_id += 1
+# 3. 원형 물리 엔진 & 결과창 디자인 (HTML/JS)
+sound_url = "https://www.soundjay.com/misc/sounds/bell-ringing-04.mp3"
+
+# 번호 대역별 색상 정의
+def get_ball_color(n):
+    if n <= 10: return "radial-gradient(circle at 30% 30%, #fff, #f1c40f)" # 노랑
+    if n <= 20: return "radial-gradient(circle at 30% 30%, #fff, #3498db)" # 파랑
+    if n <= 30: return "radial-gradient(circle at 30% 30%, #fff, #e74c3c)" # 빨강
+    if n <= 40: return "radial-gradient(circle at 30% 30%, #fff, #95a5a6)" # 회색
+    return "radial-gradient(circle at 30% 30%, #fff, #2ecc71)" # 초록
+
+# 결과바에 들어갈 공들의 HTML 생성
+result_balls_html = "".join([
+    f"<div style='width:38px; height:38px; border-radius:50%; background:{get_ball_color(n)}; color:black; display:flex; align-items:center; justify-content:center; font-weight:bold; border:1.5px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.5);'>{n}</div>" 
+    for n in st.session_state.nums
+])
+bonus_ball_html = f"<div style='width:38px; height:38px; border-radius:50%; background:{get_ball_color(st.session_state.bonus)}; color:black; display:flex; align-items:center; justify-content:center; font-weight:bold; border:1.5px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.5);'>{st.session_state.bonus}</div>"
+
+# 전체 애니메이션 및 결과창 레이아웃
+html_content = f"""
+<div style='background:#0e1117; display:flex; flex-direction:column; align-items:center; border: 1px solid #333; border-radius: 20px; padding: 25px; margin-top: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);'>
+    <!-- 원형 추출기 캔버스 -->
+    <canvas id='lotto' width='400' height='350' style='background:transparent;'></canvas>
     
-    # HTML 코드 생성 (모든 데이터를 로컬 변수에 담아 안전하게 전달)
-    sound_url = "https://www.soundjay.com/misc/sounds/bell-ringing-04.mp3"
+    <div style='color: #f1c40f; font-size: 12px; font-weight: bold; margin-top: 15px; letter-spacing: 2px;'>EXTRACTION COMPLETE</div>
     
-    # HTML 본문 (절대로 깨지지 않는 구조)
-    safe_html = f"""
-    <div style='width:100%; height:400px; background:black; border-radius:20px; border:4px solid gold; overflow:hidden; position:relative;'>
-        <canvas id='lotto' width='600' height='400' style='width:100%; height:100%;'></canvas>
-        <div id='msg' style='position:absolute; bottom:20px; width:100%; text-align:center; color:gold; font-family:sans-serif; font-weight:bold; font-size:20px;'>💎 AI 데이터 분석 및 추첨 진행 중...</div>
-        <audio autoplay><source src="{sound_url}" type="audio/mp3"></audio>
+    <!-- 프리미엄 결과 바 (Black Gradient) -->
+    <div style='margin-top:10px; background:linear-gradient(180deg, #222, #000); padding: 15px 40px; border-radius: 50px; border: 1px solid #444; display: flex; gap: 12px; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.6);'>
+        {result_balls_html}
+        <span style='color:white; font-weight:bold; font-size: 22px; margin: 0 5px;'>+</span>
+        {bonus_ball_html}
     </div>
-    <script>
-        const c = document.getElementById('lotto');
-        const x = c.getContext('2d');
-        const balls = [];
-        for(let i=0; i<45; i++) {{
-            balls.push({{
-                x: Math.random()*560+20, y: Math.random()*360+20,
-                r: 15, col: 'hsl('+(i*8)+', 80%, 60%)',
-                vx: (Math.random()-0.5)*20, vy: (Math.random()-0.5)*20
-            }});
-        }}
-        function draw() {{
-            x.clearRect(0,0,600,400);
-            balls.forEach(b => {{
-                b.x += b.vx; b.y += b.vy;
-                if(b.x<15 || b.x>585) b.vx *= -1;
-                if(b.y<15 || b.y>385) b.vy *= -1;
-                x.beginPath(); x.arc(b.x, b.y, b.r, 0, Math.PI*2);
-                let g = x.createRadialGradient(b.x-5, b.y-5, 2, b.x, b.y, b.r);
-                g.addColorStop(0, 'white'); g.addColorStop(1, b.col);
-                x.fillStyle = g; x.fill();
-                x.strokeStyle = 'white'; x.stroke();
-            }});
-            requestAnimationFrame(draw);
-        }}
-        draw();
-        setTimeout(() => {{ document.getElementById('msg').innerText = '🎉 분석 완료! 대박을 기원합니다! 🎉'; }}, 2500);
-    </script>
-    """
-    st.session_state.html_code = safe_html
+    <audio autoplay><source src="{sound_url}" type="audio/mp3"></audio>
+</div>
+
+<script>
+    const c = document.getElementById('lotto');
+    const x = c.getContext('2d');
+    const centerX = 200, centerY = 175, radius = 150;
+    const balls = [];
+    const colors = ['#f1c40f', '#3498db', '#e74c3c', '#95a5a6', '#2ecc71'];
+
+    // 45개 공 생성 및 초기 속도 설정
+    for(let i=1; i<=45; i++) {{
+        balls.push({{
+            x: centerX + (Math.random()-0.5)*100,
+            y: centerY + (Math.random()-0.5)*100,
+            vx: (Math.random()-0.5)*18,
+            vy: (Math.random()-0.5)*18,
+            r: 11,
+            num: i,
+            col: colors[Math.floor((i-1)/10)] || colors[4]
+        }});
+    }}
+
+    function draw() {{
+        x.clearRect(0, 0, 400, 400);
+        
+        // 원형 통 그리기
+        x.beginPath();
+        x.arc(centerX, centerY, radius, 0, Math.PI*2);
+        x.fillStyle = '#111';
+        x.fill();
+        x.strokeStyle = '#444';
+        x.lineWidth = 4;
+        x.stroke();
+
+        balls.forEach(b => {{
+            b.x += b.vx; b.y += b.vy;
+            
+            // 원형 벽 충돌 처리
+            const dist = Math.sqrt((b.x-centerX)**2 + (b.y-centerY)**2);
+            if(dist + b.r > radius) {{
+                const nx = (b.x-centerX)/dist, ny = (b.y-centerY)/dist;
+                const dot = b.vx*nx + b.vy*ny;
+                b.vx -= 2*dot*nx; b.vy -= 2*dot*ny;
+                b.x = centerX + nx*(radius-b.r);
+                b.y = centerY + ny*(radius-b.r);
+            }}
+
+            // 공 그리기 (입체감 효과)
+            x.beginPath();
+            x.arc(b.x, b.y, b.r, 0, Math.PI*2);
+            let g = x.createRadialGradient(b.x-4, b.y-4, 2, b.x, b.y, b.r);
+            g.addColorStop(0, '#fff'); g.addColorStop(1, b.col);
+            x.fillStyle = g; x.fill();
+            
+            x.fillStyle = 'black'; 
+            x.font = 'bold 9px Arial'; 
+            x.textAlign='center';
+            x.fillText(b.num, b.x, b.y+3);
+        }});
+        requestAnimationFrame(draw);
+    }}
+    draw();
+</script>
+"""
+
+# 컴포넌트 출력 (key값을 주어 매번 새로 시작하게 함)
+components.html(html_content, height=540, key=f"lotto_premium_{st.session_state.run_id}")
+
+# 4. 분석 실행 버튼
+st.write("") # 간격 조절
+if st.button("✨ 다시 분석하기"):
+    # 실제 번호 추출 로직 (6개 + 보너스 1개)
+    picked = random.sample(range(1, 46), 7)
+    st.session_state.nums = sorted(picked[:6])
+    st.session_state.bonus = picked[6]
+    st.session_state.run_id += 1
     st.rerun()
 
-# 4. [에러 제로 핵심] 화면 출력 로직
-# .get()을 쓰고, str()로 강제 변환하며, 길이가 충분할 때만(진짜 코드가 들어있을 때만) 실행합니다.
-display_content = str(st.session_state.get("html_code", ""))
-
-if len(display_content) > 100: # "<div></div>" 같은 빈 태그가 아닐 때만 실행
-    # key값을 변수에 담아 완벽하게 고정
-    final_key = f"summon_id_{st.session_state.run_id}"
-    
-    try:
-        components.html(
-            display_content, 
-            height=420, 
-            key=final_key
-        )
-    except:
-        st.write("애니메이션 준비 중...")
-
-    # 5. 행운의 번호 공 표시
-    st.subheader("🔮 이번 회차 분석 번호")
-    cols = st.columns(6)
-    for i, n in enumerate(st.session_state.nums):
-        cols[i].markdown(f"""
-            <div style='background:radial-gradient(circle at 30% 30%, #f1c40f, #f39c12); color:black; 
-            border-radius:50%; width:55px; height:55px; display:flex; align-items:center; 
-            justify-content:center; font-weight:bold; font-size:22px; margin:auto; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid white;'>{n}</div>
-        """, unsafe_allow_html=True)
-else:
-    st.info("💡 위 버튼을 눌러 AI 프리미엄 분석을 시작하세요!")
-
-# 6. 하단 차트
-st.divider()
-st.subheader("📊 AI 구간별 데이터 가중치 현황")
-import pandas as pd
-chart_val = [random.randint(20, 70) for _ in range(5)]
-st.bar_chart(pd.DataFrame(chart_val, index=["1-10", "11-20", "21-30", "31-40", "41-45"]))
+# 5. 하단 안내 텍스트
+st.markdown("<p style='text-align: center; color: #555; font-size: 0.9em; margin-top: 20px;'>💡 버튼을 누르면 물리 엔진 시뮬레이션과 함께 AI 분석이 시작됩니다.</p>", unsafe_allow_html=True)
