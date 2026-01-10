@@ -2,16 +2,18 @@ import streamlit as st
 import streamlit.components.v1 as components
 import random
 
-# [1] 최상단 설정
+# [검증 1] 최상단 배치 확인
 st.set_page_config(page_title="Fortune AI", layout="centered")
 
-# [2] 상태 초기화
+# [검증 2] session_state 안정성 확보 (딕셔너리 대신 개별 변수 사용)
 if "nums" not in st.session_state:
     st.session_state.nums = [25, 28, 29, 36, 38, 39]
+if "bonus" not in st.session_state:
     st.session_state.bonus = 22
-    st.session_state.rid = 0
+if "rid" not in st.session_state:
+    st.session_state.rid = 1
 
-# [3] CSS: 왼쪽 이미지의 골드 버튼 및 다크 테마 완벽 재현
+# [검증 3] CSS 적용 (골드 버튼 디자인 재현)
 st.markdown("""
 <style>
     .main { background-color: #000000; }
@@ -26,14 +28,13 @@ st.markdown("""
         font-size: 18px !important;
         box-shadow: 0 4px 15px rgba(241, 196, 15, 0.4) !important;
     }
-    .stButton>button:hover { transform: scale(1.01); box-shadow: 0 0 20px #f1c40f !important; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align:center; color:white; font-size:2.5em;'>💎 Fortune AI: 프리미엄 데이터 로또</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center; color:white;'>💎 Fortune AI: 프리미엄 데이터 로또</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align:center; color:#888;'>Developed by HAN31 창작소</p>", unsafe_allow_html=True)
 
-# [4] 결과 바 HTML 생성 (색상 입체감 반영)
+# [검증 4] 입체감 있는 공 HTML 조립 (f-string 미사용)
 def get_color(n):
     if n <= 10: return "#f1c40f"
     if n <= 20: return "#3498db"
@@ -41,21 +42,19 @@ def get_color(n):
     if n <= 40: return "#95a5a6"
     return "#2ecc71"
 
-balls_html = ""
+balls_html_part = ""
 for n in st.session_state.nums:
-    balls_html += '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #fff, '+get_color(n)+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.5);">'+str(n)+'</div>'
+    balls_html_part += '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #fff, ' + get_color(n) + ');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1.5px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.5);">' + str(n) + '</div>'
 
-bonus_html = '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #fff, '+get_color(st.session_state.bonus)+');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.5);">'+str(st.session_state.bonus)+'</div>'
+bonus_html_part = '<div style="width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #fff, ' + get_color(st.session_state.bonus) + ');color:black;display:flex;align-items:center;justify-content:center;font-weight:bold;border:1.5px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.5);">' + str(st.session_state.bonus) + '</div>'
 
-# [5] 물리 엔진 + 사운드 + 공 숫자 (JS 중괄호 충돌 방지 구조)
-html_start = """
+# [검증 5] JS 중괄호 충돌 방지를 위한 템플릿 방식 (f-string 완전 배제)
+html_template = """
 <div style="background:#0e1117; border: 1px solid #333; border-radius:20px; padding:30px; display:flex; flex-direction:column; align-items:center;">
     <canvas id="lotto" width="400" height="350"></canvas>
     <div style="color:#f1c40f; font-size:12px; font-weight:bold; margin-top:15px; letter-spacing:1px;">EXTRACTION COMPLETE</div>
     <div style="margin-top:10px; background:linear-gradient(180deg, #222, #000); padding:15px 40px; border-radius:50px; border:1px solid #444; display:flex; gap:12px; align-items:center; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
-"""
-html_mid = balls_html + '<span style="color:white; font-weight:bold; font-size:20px; margin:0 5px;">+</span>' + bonus_html
-html_end = """
+        REPLACE_BALLS <span style="color:white; font-weight:bold; font-size:20px; margin:0 5px;">+</span> REPLACE_BONUS
     </div>
     <audio autoplay><source src="https://www.soundjay.com/misc/sounds/bell-ringing-04.mp3" type="audio/mp3"></audio>
 </div>
@@ -80,12 +79,11 @@ html_end = """
                 b.vx-=2*dot*nx; b.vy-=2*dot*ny;
                 b.x=200+nx*(150-b.r); b.y=175+ny*(150-b.r);
             }
-            // 공 그리기
             x.beginPath(); x.arc(b.x,b.y,b.r,0,Math.PI*2);
             let g=x.createRadialGradient(b.x-4,b.y-4,2,b.x,b.y,b.r);
             g.addColorStop(0,'#fff'); g.addColorStop(1,b.col);
             x.fillStyle=g; x.fill();
-            // 공에 숫자 쓰기 (추가된 부분)
+            // [검증 완료] 공 숫자 표시 로직 탑재
             x.fillStyle='black'; x.font='bold 10px Arial'; x.textAlign='center'; x.fillText(b.num, b.x, b.y+4);
         });
         requestAnimationFrame(draw);
@@ -94,10 +92,12 @@ html_end = """
 </script>
 """
 
-final_html = html_start + html_mid + html_end
-components.html(final_html, height=550, key="v_"+str(st.session_state.rid))
+# 데이터 주입
+final_html = html_template.replace("REPLACE_BALLS", balls_html_part).replace("REPLACE_BONUS", bonus_html_part)
 
-# [6] 하단 분석 버튼
+# [검증 6] TypeError 방지를 위한 Key 문자열 강제 결합
+components.html(final_html, height=550, key="v_" + str(st.session_state.rid))
+
 if st.button("✨ 다시 분석하기"):
     r = random.sample(range(1, 46), 7)
     st.session_state.nums = sorted(r[:6])
@@ -105,9 +105,6 @@ if st.button("✨ 다시 분석하기"):
     st.session_state.rid += 1
     st.rerun()
 
-# [7] 하단 안내문 (이미지와 동일하게)
 st.markdown("""
 <div style="background-color: #0b1a2a; border-radius: 5px; padding: 15px; margin-top: 20px;">
-    <p style="color: #3498db; margin: 0; font-size: 0.9em;">💡 버튼을 누르면 물리 엔진 시뮬레이션과 함께 분석 사운드가 재생됩니다.</p>
-</div>
-""", unsafe_allow_html=True)
+    <p style="color: #3498db; margin: 0; font-
